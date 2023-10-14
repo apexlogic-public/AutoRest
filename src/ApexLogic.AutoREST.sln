@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.6.33801.468
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApexLogic.AutoREST", "ApexLogic.AutoREST\ApexLogic.AutoREST.csproj", "{CF5FE7FB-A5D6-459C-A544-5F12EA1267D2}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sample", "Sample\Sample.csproj", "{1B64676A-67D2-405B-B24F-9A21FA87E618}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{CF5FE7FB-A5D6-459C-A544-5F12EA1267D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CF5FE7FB-A5D6-459C-A544-5F12EA1267D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CF5FE7FB-A5D6-459C-A544-5F12EA1267D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CF5FE7FB-A5D6-459C-A544-5F12EA1267D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1B64676A-67D2-405B-B24F-9A21FA87E618}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1B64676A-67D2-405B-B24F-9A21FA87E618}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1B64676A-67D2-405B-B24F-9A21FA87E618}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1B64676A-67D2-405B-B24F-9A21FA87E618}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {86E0E315-EEB6-4FD0-AC91-8BB7E322BB96}
+	EndGlobalSection
+EndGlobal
