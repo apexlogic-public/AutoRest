@@ -23,6 +23,7 @@ namespace ApexLogic.AutoREST
 
         private ConcurrentBag<ApiEventSubscription> _eventSupscriptions = new ConcurrentBag<ApiEventSubscription>();
 
+        private bool _isRunning;
         private HttpListener _listener;
         private string _url = "http://localhost:8000/";
 
@@ -34,6 +35,8 @@ namespace ApexLogic.AutoREST
         public void Init(string host)
         {
             _url = host;
+
+            _isRunning = true;
 
             _listener = new HttpListener();
             _listener.Prefixes.Add(_url);
@@ -54,6 +57,11 @@ namespace ApexLogic.AutoREST
             _eventThread.Start();
         }
 
+        public void Close()
+        {
+            _isRunning = false;
+            _listener.Stop();
+        }
         public void Register(object api)
         {
             Type type = api.GetType();
@@ -107,13 +115,21 @@ namespace ApexLogic.AutoREST
             }
         }
 
-        private async void RequestRunner()
+        public void Unregister(object api)
         {
-            while (true)
+            foreach(ApiEndpoint endpoint in endpoints.Where(ep => ep.ServiceObject == api))
             {
-                HttpListenerContext ctx = await _listener.GetContextAsync();
+                endpoints.Remove(endpoint);
+            }       
+        }
 
-                _ = Task.Run(async () =>
+        private void RequestRunner()
+        {
+            while (_isRunning)
+            {
+                HttpListenerContext ctx = _listener.GetContext();
+
+                _ = Task.Run(() =>
                 {
                     HttpListenerRequest req = ctx.Request;
                     HttpListenerResponse resp = ctx.Response;
@@ -143,7 +159,7 @@ namespace ApexLogic.AutoREST
 
         private void EventKeepaliveRunner()
         {
-            while (true)
+            while (_isRunning)
             {
                 foreach(ApiEventSubscription subscription in _eventSupscriptions)
                 {
@@ -174,7 +190,7 @@ namespace ApexLogic.AutoREST
                 response.ContentLength64 = data.LongLength;
                 response.OutputStream.Write(data, 0, data.Length);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 response.StatusCode = 500;
             }
@@ -240,7 +256,7 @@ namespace ApexLogic.AutoREST
                 }
                 else
                 {
-                    throw new ArgumentException("Cannot fill required parameter!");
+                    throw new ArgumentException($"Cannot fill required parameter: {parameter.Name}!");
                 }
             }
 
