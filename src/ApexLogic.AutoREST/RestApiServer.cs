@@ -17,6 +17,9 @@ using System.Threading.Tasks;
 
 namespace ApexLogic.AutoREST
 {
+    /// <summary>
+    /// Handles service objects marked with the <see cref="RestApiAttribute"/> attribute for routes and handles inocming HTTP connections, serving them if possible.
+    /// </summary>
     public class RestApiServer
     {
         private readonly List<string> MethodNameExclusions = new List<string>() { "ToString", "GetHashCode", "Equals", "GetType" };
@@ -32,6 +35,18 @@ namespace ApexLogic.AutoREST
 
         static List<ApiEndpoint> endpoints { get; } = new List<ApiEndpoint>();
 
+        /// <summary>
+        /// Creates a new <see cref="RestApiServer"/>.
+        /// </summary>
+        public RestApiServer()
+        {
+
+        }
+
+        /// <summary>
+        /// Initializes the server and starts listening on the supplied host address.
+        /// </summary>
+        /// <param name="host">The working host address. Use http:// or https:// with port inidciation (e.g. :8080)</param>
         public void Init(string host)
         {
             _url = host;
@@ -57,11 +72,19 @@ namespace ApexLogic.AutoREST
             _eventThread.Start();
         }
 
+        /// <summary>
+        /// Stops listening in the supplied host address and stops related threads.
+        /// </summary>
         public void Close()
         {
             _isRunning = false;
             _listener.Stop();
         }
+
+        /// <summary>
+        /// Registers a service object  marked with the <see cref="RestApiAttribute"/> attribute adding its public non-ignored methods to the available endpoints.
+        /// </summary>
+        /// <param name="api">The service object to be registered.</param>
         public void Register(object api)
         {
             Type type = api.GetType();
@@ -115,6 +138,10 @@ namespace ApexLogic.AutoREST
             }
         }
 
+        /// <summary>
+        /// Un-registers a service object  marked with the <see cref="RestApiAttribute"/> attribute removing its public non-ignored methods from the available endpoints.
+        /// </summary>
+        /// <param name="api">The service object to be un-registered.</param>
         public void Unregister(object api)
         {
             foreach(ApiEndpoint endpoint in endpoints.Where(ep => ep.ServiceObject == api))

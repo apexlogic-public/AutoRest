@@ -12,6 +12,10 @@ using System.Threading.Tasks;
 
 namespace ApexLogic.AutoREST
 {
+    /// <summary>
+    /// Utility class to generate flexible clients for use with a <see cref="RestApiServer"/> service.
+    /// </summary>
+    /// <typeparam name="T">The interaface adorned with a <see cref="RestApiAttribute"/> attribute that acts as a service descriptor.</typeparam>
     public class Implement<T>
     {
         private const string CLASS_SCAFFOLDING =
@@ -31,7 +35,12 @@ namespace ApexLogic.AutoREST
         private const string METHOD_DELEGATE_PROP = "public Func<string, Type, Dictionary<string, object>, object> _methodDelegate { get; set; }";
         private const string EVENT_DELEGATE_PROP = "public Func<string, ServerSideEvent> _eventDelegate { get; set; }";
 
-
+        /// <summary>
+        /// Generates a dynamic class that implements <typeparamref name="T"/> with method bodies defines in <paramref name="methodPredicate"/>.
+        /// </summary>
+        /// <param name="methodPredicate">The method "implementation" delegate.</param>
+        /// <param name="eventCreator">A delegate to create <see cref="ServerSideEvent"/> objects to use on the client-side (See <see cref="ServerSideEventClient"/> for a reference implementation).</param>
+        /// <returns>A danamic class implementing the interface <typeparamref name="T"/>.</returns>
         public static T LikeThis(Func<string, Type, Dictionary<string, object>, object> methodPredicate, Func<string, ServerSideEvent> eventCreator)
         {
             List<SourceWithUsings> methods = new List<SourceWithUsings>();
