@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using ApexLogic.AutoREST;
+using ApexLogic.AutoREST.Utils;
 using Newtonsoft.Json;
 
 
@@ -27,52 +28,13 @@ namespace RestServer.Client
 
         public static ServerSideEvent RestApiEventCreator(string method)
         {
-            string s = "http://localhost:8000" + GetRoute().Replace("get_", "");
-
-            return new ServerSideEventClient(s);
+            return ClientUtils.RestApiEventCreator("http://localhost:8000", method);
         }
 
 
         public static object RestApiCallHandler(string method, Type returnType, Dictionary<string, object> parameters)
         {
-            string s = "http://localhost:8000" + GetRoute() + GetQuery(parameters);
-
-            Task<Stream> task = client.GetStreamAsync(s);
-            task.Wait();
-
-            string json = "";
-            using (StreamReader sr = new StreamReader(task.Result))
-            {
-                json = sr.ReadToEnd();
-            }
-
-            object o = JsonConvert.DeserializeObject(json, returnType);
-
-            return o;
+            return ClientUtils.RestApiCallHandler("http://localhost:8000", client, method, returnType, parameters);
         }
-
-        private static string GetRoute()
-        {
-            MethodBase method = new StackTrace().GetFrame(2).GetMethod();
-            Type implementedType = method.DeclaringType;
-            string result = implementedType.GetCustomAttributes<RestApiAttribute>(true)[0].EndPoint + "/" + method.Name;
-            if (!result.StartsWith("/"))
-            {
-                result = "/" + result;
-            }
-            return result.ToLower();
-        }
-
-        private static string GetQuery(Dictionary<string, object> parameters)
-        {
-            string result = string.Empty;
-            if (parameters.Count > 0)
-            {
-                result += "?";
-                result += string.Join("&", parameters.Select(kvp => $"{kvp.Key}={kvp.Value.ToString()}"));
-            }
-            return result;
-        }
-
     }
 }

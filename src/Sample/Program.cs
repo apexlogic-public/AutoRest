@@ -17,16 +17,13 @@ namespace RestServer
         public static void Main(string[] args)
         {
             #region Server creation
-
             SampleService service = new SampleService();
+
             RestApiServer server = new RestApiServer();
             server.Init("http://localhost:8000/");
             server.Register(service);
 
             #endregion
-
-            service.ToUpper("test");
-
 
             #region Client creation
 
@@ -35,9 +32,9 @@ namespace RestServer
 
             #endregion
 
-            //string upper = RestApi.SampleApi.ToUpper("parameter value");
-            //var nums = RestApi.SampleApi.Numbers0To10();
-            //dynamic test = RestApi.SampleApi.DynamicData();
+            string upper = RestApi.SampleApi.ToUpper("parameter value");
+            var nums = RestApi.SampleApi.Numbers0To10();
+            dynamic test = RestApi.SampleApi.DynamicData();
 
             while (true)
             {

@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Reflection;
@@ -96,12 +97,15 @@ namespace ApexLogic.AutoREST
 
                 foreach (MethodInfo method in type.GetMethods())
                 {
-                    RestIgnoreAttribute attr = method.GetCustomAttribute<RestIgnoreAttribute>();
-                    if (attr == null && method.IsPublic && !MethodNameExclusions.Contains(method.Name))
+                    RestIgnoreAttribute ingoreAttr = method.GetCustomAttribute<RestIgnoreAttribute>();
+                    UseHttpMethodAttribute methodAttr = method.GetCustomAttribute<UseHttpMethodAttribute>();
+                    if (ingoreAttr == null && method.IsPublic && !MethodNameExclusions.Contains(method.Name))
                     {
+                        HttpVerb verb = methodAttr != null ? methodAttr.Method : HttpVerb.GET;
                         endpoints.Add(new ApiEndpoint()
                         {
                             Type = ApiEndpoint.EndpointTypes.Method,
+                            Verb = verb,
                             Route = $"{baseAddress}/{method.Name.ToLower()}",
                             ServiceObject = api,
                             RelfectionInfo = method
@@ -208,7 +212,15 @@ namespace ApexLogic.AutoREST
         {
             try
             {
-                object[] param = FillParameters(endpoint.RelfectionInfo as MethodInfo, request.QueryString);
+                string body = string.Empty;
+                if(request.HasEntityBody)
+                {
+                    using(StreamReader sr = new StreamReader(request.InputStream))
+                    {
+                        body = sr.ReadToEnd();
+                    }
+                }
+                object[] param = FillParameters(endpoint.RelfectionInfo as MethodInfo, request.QueryString, body);
                 object returnData = (endpoint.RelfectionInfo as MethodInfo).Invoke(endpoint.ServiceObject, param);
                 string result = JsonConvert.SerializeObject(returnData);
 
@@ -253,7 +265,7 @@ namespace ApexLogic.AutoREST
                     });
 
                     byte[] data = Encoding.UTF8.GetBytes(result + Environment.NewLine);
-                    subscription.Client.Response.OutputStream.Write(data);
+                    subscription.Client.Response.OutputStream.Write(data, 0, data.Length);
 
                     subscription.Client.Response.OutputStream.Flush();
                 }
@@ -266,24 +278,32 @@ namespace ApexLogic.AutoREST
             return _eventSupscriptions.Where(sub => sub.Endpoint.ServiceObject == evt.Item1 && sub.Endpoint.Route.EndsWith($"{evt.Item2.ToLower()}/subscribe"));
         }
 
-        private object[] FillParameters(MethodInfo method, NameValueCollection query)
+        private object[] FillParameters(MethodInfo method, NameValueCollection query, string requestBody)
         {
             List<object> result = new List<object>();
             foreach (ParameterInfo parameter in method.GetParameters())
             {
-                object value = null;
-                string queryValue = query[parameter.Name];
-                if (queryValue != null)
+                RequestBodyAttribute reqBody = method.GetCustomAttribute<RequestBodyAttribute>();
+
+                if (reqBody != null)
                 {
-                    result.Add(Convert.ChangeType(queryValue, parameter.ParameterType));
-                }
-                else if (parameter.HasDefaultValue)
-                {
-                    result.Add(parameter.DefaultValue);
+                    result.Add(JsonConvert.DeserializeObject(requestBody, parameter.ParameterType));
                 }
                 else
                 {
-                    throw new ArgumentException($"Cannot fill required parameter: {parameter.Name}!");
+                    string queryValue = query[parameter.Name];
+                    if (queryValue != null)
+                    {
+                        result.Add(Convert.ChangeType(queryValue, parameter.ParameterType));
+                    }
+                    else if (parameter.HasDefaultValue)
+                    {
+                        result.Add(parameter.DefaultValue);
+                    }
+                    else
+                    {
+                        throw new ArgumentException($"Cannot fill required parameter: {parameter.Name}!");
+                    }
                 }
             }
 

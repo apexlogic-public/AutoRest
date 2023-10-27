@@ -18,6 +18,7 @@ namespace ApexLogic.AutoREST.Internals
 
         public EndpointTypes Type { get; set; }
         public string Route { get; set; }
+        public HttpVerb Verb { get; set; }
         public object ServiceObject { get; set; }
         public MemberInfo RelfectionInfo { get; set; }
     }

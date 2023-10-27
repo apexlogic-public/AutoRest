@@ -21,5 +21,8 @@ namespace RestServer
         dynamic DynamicData();
 
         ServerSideEvent SimpleEvent { get; }
+
+        [UseHttpMethod(HttpVerb.POST)]
+        void SendLotsOfData([RequestBody] string data);
     }
 }
