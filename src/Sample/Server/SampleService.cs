@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace RestServer.Server
+namespace Sample.Server
 {
     internal class SampleService : ISampleApi
     {
@@ -15,13 +15,12 @@ namespace RestServer.Server
         {
             return new Dictionary<string, int>()
             {
-                { "Dzsézönsztetem", 100 }
+                { "Generic Data", 100 }
             };
         }
 
         public List<int> Numbers0To10()
         {
-            Console.WriteLine("Numbers0To10 called on server!");
             List<int> result = new List<int>();
             for(int i = 0; i < 10; i++)
             {
@@ -32,7 +31,6 @@ namespace RestServer.Server
 
         public void Test(string param1)
         {
-            Console.WriteLine("Call to server successful!");
         }
 
         public string ToUpper(string value)
@@ -45,6 +43,13 @@ namespace RestServer.Server
         public void RaiseSimpleEvent()
         {
             SimpleEvent.Invoke(this, EventArgs.Empty);
+        }
+
+        [UseHttpMethod(HttpVerb.POST)]
+        public void SendLotsOfData([RequestBody] string data)
+        {
+            Console.WriteLine("[SERVER] Processing LotsOfData...");
+            Task.Delay(500).Wait();
         }
     }
 }

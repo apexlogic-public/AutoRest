@@ -6,23 +6,22 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using ApexLogic.AutoREST;
+using ApexLogic.AutoREST.CodeGeneration;
 using ApexLogic.AutoREST.Utils;
 using Newtonsoft.Json;
 
 
-namespace RestServer.Client
+namespace Sample.Client
 {
     public class RestApi
     {
+        //You can also add other APIs if needed
         public static ISampleApi SampleApi { get; set; }
-        //public static IMachineApi MachineApi { get; }
-        //public static IJobApi JobApi { get; }
 
         static HttpClient client;
 
         static RestApi()
         {
-            //SampleApi = Implement<ISampleApi>.LikeThis(RestApiCallHandler);
             client = new HttpClient();
         }
 
@@ -31,10 +30,10 @@ namespace RestServer.Client
             return ClientUtils.RestApiEventCreator("http://localhost:8000", method);
         }
 
-
-        public static object RestApiCallHandler(string method, Type returnType, Dictionary<string, object> parameters)
+        public static object RestApiCallHandler(ApiCallArguments args)
         {
-            return ClientUtils.RestApiCallHandler("http://localhost:8000", client, method, returnType, parameters);
+            args.Host = "http://localhost:8000";
+            return ClientUtils.RestApiCallHandler(args, client);
         }
     }
 }

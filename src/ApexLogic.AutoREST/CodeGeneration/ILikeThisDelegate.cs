@@ -8,7 +8,7 @@ namespace ApexLogic.AutoREST
 {
     public interface ILikeThisDelegate
     {
-        Func<string, Type, Dictionary<string, object>, object> _methodDelegate { get; set; }
+        Func<ApiCallArguments, object> _methodDelegate { get; set; }
         Func<string, ServerSideEvent> _eventDelegate { get; set; }
     }
 }

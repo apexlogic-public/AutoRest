@@ -18,6 +18,9 @@ namespace ApexLogic.AutoREST
     /// <typeparam name="T">The interaface adorned with a <see cref="RestApiAttribute"/> attribute that acts as a service descriptor.</typeparam>
     public class Implement<T>
     {
+        private const string DANYMIC_NAMESPACE_PREFIX = "ApexLogic.Libs.DynamicCode._Dynamic_";
+        private const string DANYMIC_CLASSNAME = "ImplementedType";
+
         private const string CLASS_SCAFFOLDING =
             "{4}\n" +
             "public class {1} : {2}, ILikeThisDelegate\n" +
@@ -27,13 +30,18 @@ namespace ApexLogic.AutoREST
             "return new {1}();";
         private const string METHOD_SCAFFOLDING = "public {0} {1}({2})\n {{\n {3}\n }}";
 
-        private const string VOID_CALL_SCAFFOLDING = "_methodDelegate(\"{0}\", null, {1});";
-        private const string RETURN_DANYMIC_CALL_SCAFFOLDING = "return _methodDelegate(\"{1}\", typeof({0}), {2});";
-        private const string RETURN_CALL_SCAFFOLDING = "return ({0})Convert.ChangeType(_methodDelegate(\"{1}\", typeof({0}), {2}), typeof({0}));";
+        private const string VOID_CALL_SCAFFOLDING = "_methodDelegate({0});";
+        private const string RETURN_DANYMIC_CALL_SCAFFOLDING = "return _methodDelegate({0});";
+        private const string RETURN_CALL_SCAFFOLDING = "return ({1})Convert.ChangeType(_methodDelegate({0}), typeof({1}));";
+        
         private const string EVENT_SCAFFOLDING = "public ServerSideEvent {0} {{ get {{ if(_{0} == null) {{ _{0} = _eventDelegate(\"{0}\"); }} return _{0}; }} }} private ServerSideEvent _{0};";
 
-        private const string METHOD_DELEGATE_PROP = "public Func<string, Type, Dictionary<string, object>, object> _methodDelegate { get; set; }";
+        private const string METHOD_DELEGATE_PROP = "public Func<ApiCallArguments, object> _methodDelegate { get; set; }";
         private const string EVENT_DELEGATE_PROP = "public Func<string, ServerSideEvent> _eventDelegate { get; set; }";
+
+        private const string APICALL_SCAFFOLD = "new ApiCallArguments({0}, HttpVerb.{1}, \"{2}\", typeof({3}), {4}, {5})";
+
+        private const string TYPE_VOID = "void";
 
         /// <summary>
         /// Generates a dynamic class that implements <typeparamref name="T"/> with method bodies defines in <paramref name="methodPredicate"/>.
@@ -41,7 +49,7 @@ namespace ApexLogic.AutoREST
         /// <param name="methodPredicate">The method "implementation" delegate.</param>
         /// <param name="eventCreator">A delegate to create <see cref="ServerSideEvent"/> objects to use on the client-side (See <see cref="ServerSideEventClient"/> for a reference implementation).</param>
         /// <returns>A danamic class implementing the interface <typeparamref name="T"/>.</returns>
-        public static T LikeThis(Func<string, Type, Dictionary<string, object>, object> methodPredicate, Func<string, ServerSideEvent> eventCreator)
+        public static T LikeThis(Func<ApiCallArguments, object> methodPredicate, Func<string, ServerSideEvent> eventCreator)
         {
             List<SourceWithUsings> methods = new List<SourceWithUsings>();
             
@@ -61,29 +69,24 @@ namespace ApexLogic.AutoREST
                     continue;
                 }
 
+
+                var attr1 = method.GetCustomAttributes<RestIgnoreAttribute>(true);
+                var attr2 = method.GetCustomAttributes<UseHttpMethodAttribute>(true);
+
+                SourceWithUsings args = CreateCallArguments(method);
                 string body = "";
                 if (method.ReturnType == typeof(void))
                 {
-                    body = string.Format(VOID_CALL_SCAFFOLDING,
-                                            method.Name, 
-                                            CreateDynamicMethodParameterDictionary(method)
-                                        );
+                    
+                    body = string.Format(VOID_CALL_SCAFFOLDING, args.SourceCode);
                 }
                 else if (method.ReturnType == typeof(object))
                 {
-                    body = string.Format(RETURN_DANYMIC_CALL_SCAFFOLDING,
-                                            CreateTypeSourceString(method.ReturnType).SourceCode, 
-                                            method.Name, 
-                                            CreateDynamicMethodParameterDictionary(method)
-                                        );
+                    body = string.Format(RETURN_DANYMIC_CALL_SCAFFOLDING, args.SourceCode);
                 }
                 else
                 {
-                    body = string.Format(RETURN_CALL_SCAFFOLDING,
-                                    CreateTypeSourceString(method.ReturnType).SourceCode, 
-                                    method.Name, 
-                                    CreateDynamicMethodParameterDictionary(method)
-                                );
+                    body = string.Format(RETURN_CALL_SCAFFOLDING, args.SourceCode, CreateTypeSourceString(method.ReturnType).SourceCode);
                 }
                 methods.Add(CreateDynamicMethodSource(method, body));
             }
@@ -126,19 +129,18 @@ namespace ApexLogic.AutoREST
 
         private static Tuple<string, string> CreateDynamicTypeSource(List<string> usings)
         {
-            string dynamicNamespace = $"ApexLogic.Libs.DynamicCode._Dynamic_{new Random().Next()}";
-            string implementetClassName = "ImplementedType";
+            string dynamicNamespace = DANYMIC_NAMESPACE_PREFIX + new Random().Next();
 
             usings.Add(typeof(T).Namespace);
 
             string source = string.Format(CLASS_SCAFFOLDING, 
-                                            dynamicNamespace, 
-                                            implementetClassName, 
+                                            dynamicNamespace,
+                                            DANYMIC_CLASSNAME, 
                                             typeof(T).Name, 
                                             "{3}", 
                                             string.Join("\r\n", usings.Select(u => $"using {u};"))
                                         );
-            return new Tuple<string, string>($"{dynamicNamespace}.{implementetClassName}", source);
+            return new Tuple<string, string>($"{dynamicNamespace}.{DANYMIC_CLASSNAME}", source);
         }
 
         private static SourceWithUsings CreateDynamicMethodSource(MethodInfo info, string body)
@@ -160,12 +162,15 @@ namespace ApexLogic.AutoREST
             return result;
         }
 
-        private static string CreateDynamicMethodParameterDictionary(MethodInfo info)
+        private static string CreateDynamicMethodParameterDictionary(MethodInfo info, string exclude = null)
         {
             List<string> parameters = new List<string>();
             foreach (ParameterInfo parameter in info.GetParameters())
             {
-                parameters.Add($"{{ \"{parameter.Name}\", {parameter.Name} }}");
+                if (parameter.Name != exclude)
+                {
+                    parameters.Add($"{{ \"{parameter.Name}\", {parameter.Name} }}");
+                }
             }
             return "new Dictionary<string, object>(){ " + string.Join(", ", parameters) + "}";
 
@@ -183,9 +188,9 @@ namespace ApexLogic.AutoREST
             }
             else
             {
-                if (t.Name == "Void")
+                if (t.Name.ToLower() == TYPE_VOID)
                 {
-                    result.SourceCode = "void";
+                    result.SourceCode = TYPE_VOID;
                 }
                 else
                 {
@@ -193,6 +198,46 @@ namespace ApexLogic.AutoREST
                     result.AppendType(t);
                 }
             }
+
+            return result;
+        }
+
+        private static SourceWithUsings CreateCallArguments(MethodInfo method)
+        {
+            SourceWithUsings result = new SourceWithUsings();
+
+            //new ApiCallArguments(host, verb, method, returnType, param, body);
+            HttpVerb verb = HttpVerb.GET;
+
+            UseHttpMethodAttribute verbAttr = method.GetCustomAttributes<UseHttpMethodAttribute>(true).FirstOrDefault();
+            if(verbAttr != null)
+            {
+                verb = verbAttr.Method;
+            }
+
+            SourceWithUsings returnType = CreateTypeSourceString(method.ReturnType);
+
+            string bodyName = "null";
+            foreach (ParameterInfo parameter in method.GetParameters())
+            {
+                RequestBodyAttribute bodybAttr = parameter.GetCustomAttributes<RequestBodyAttribute>(true).FirstOrDefault();
+                if (bodybAttr != null)
+                {
+                    bodyName = parameter.Name;
+
+
+                }
+            }
+
+            result.SourceCode =  string.Format(APICALL_SCAFFOLD, 
+                                "null", 
+                                verb, 
+                                method.Name,
+                                returnType.SourceCode, 
+                                CreateDynamicMethodParameterDictionary(method, bodyName),
+                                bodyName);
+
+            result.Usings.AddRange(returnType.Usings);
 
             return result;
         }

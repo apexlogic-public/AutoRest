@@ -23,7 +23,15 @@ namespace ApexLogic.AutoREST
     /// </summary>
     public class RestApiServer
     {
-        private readonly List<string> MethodNameExclusions = new List<string>() { "ToString", "GetHashCode", "Equals", "GetType" };
+        private static readonly string[] _methodNameExclusions = new string[] 
+        { 
+            nameof(ToString), 
+            nameof(GetHashCode), 
+            nameof(Equals), 
+            nameof(GetType) 
+        };
+
+        private static Dictionary<int, HttpListenerRequest> _servercallMetadata = new Dictionary<int, HttpListenerRequest>();
 
         private ConcurrentBag<ApiEventSubscription> _eventSupscriptions = new ConcurrentBag<ApiEventSubscription>();
 
@@ -34,7 +42,7 @@ namespace ApexLogic.AutoREST
         private Thread _requestThread;
         private Thread _eventThread;
 
-        static List<ApiEndpoint> endpoints { get; } = new List<ApiEndpoint>();
+        private List<ApiEndpoint> endpoints { get; } = new List<ApiEndpoint>();
 
         /// <summary>
         /// Creates a new <see cref="RestApiServer"/>.
@@ -99,7 +107,7 @@ namespace ApexLogic.AutoREST
                 {
                     RestIgnoreAttribute ingoreAttr = method.GetCustomAttribute<RestIgnoreAttribute>();
                     UseHttpMethodAttribute methodAttr = method.GetCustomAttribute<UseHttpMethodAttribute>();
-                    if (ingoreAttr == null && method.IsPublic && !MethodNameExclusions.Contains(method.Name))
+                    if (ingoreAttr == null && method.IsPublic && !_methodNameExclusions.Contains(method.Name))
                     {
                         HttpVerb verb = methodAttr != null ? methodAttr.Method : HttpVerb.GET;
                         endpoints.Add(new ApiEndpoint()
@@ -154,16 +162,32 @@ namespace ApexLogic.AutoREST
             }       
         }
 
+        /// <summary>
+        /// Allows access to a <see cref="HttpListenerRequest"/> instance in a transient service method.
+        /// </summary>
+        /// <returns>The request data for the incoming request.</returns>
+        public static HttpListenerRequest GetHttpRequestData()
+        {
+            if(_servercallMetadata.ContainsKey((int)Task.CurrentId))
+            {
+                return _servercallMetadata[(int)Task.CurrentId];
+            }
+            return null;
+        }
+
         private void RequestRunner()
         {
             while (_isRunning)
             {
                 HttpListenerContext ctx = _listener.GetContext();
 
-                _ = Task.Run(() =>
+                Task run = null;
+                run = Task.Run(() =>
                 {
                     HttpListenerRequest req = ctx.Request;
                     HttpListenerResponse resp = ctx.Response;
+
+                    //_servercallMetadata.Add((int)Task.CurrentId, req);
 
                     resp.ContentType = "text/json";
                     resp.ContentEncoding = Encoding.UTF8;
@@ -183,6 +207,8 @@ namespace ApexLogic.AutoREST
                         resp.StatusCode = 404;
                         resp.Close();
                     }
+
+                    //_servercallMetadata.Remove(run.Id);
                 });
             }
 
@@ -283,7 +309,7 @@ namespace ApexLogic.AutoREST
             List<object> result = new List<object>();
             foreach (ParameterInfo parameter in method.GetParameters())
             {
-                RequestBodyAttribute reqBody = method.GetCustomAttribute<RequestBodyAttribute>();
+                RequestBodyAttribute reqBody = parameter.GetCustomAttributes<RequestBodyAttribute>(true).FirstOrDefault();
 
                 if (reqBody != null)
                 {
