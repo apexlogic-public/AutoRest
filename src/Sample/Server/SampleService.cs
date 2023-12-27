@@ -51,5 +51,10 @@ namespace Sample.Server
             Console.WriteLine("[SERVER] Processing LotsOfData...");
             Task.Delay(500).Wait();
         }
+
+        public void ThrowException()
+        {
+            throw new InvalidOperationException("Server threw an exception :(");
+        }
     }
 }

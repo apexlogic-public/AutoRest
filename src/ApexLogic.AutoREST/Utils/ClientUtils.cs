@@ -1,10 +1,12 @@
 ﻿using ApexLogic.AutoREST.CodeGeneration;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
@@ -35,6 +37,7 @@ namespace ApexLogic.AutoREST.Utils
 
         /// <summary>
         /// Sample implementation for the "method handler" delegate used in the <see cref="Implement{T}"/> class' constructor.
+        /// Handles the 4 "common" HTTP verbs as well as basic exceptions.
         /// </summary>
         /// <param name="args">Arguments of the remote call (like host, query parameters, request body, HTTP verb etc.).</param>
         /// <param name="client">The <see cref="HttpClient"/> used for the request.</param>
@@ -68,18 +71,30 @@ namespace ApexLogic.AutoREST.Utils
             }
 
             task.Wait();
-
             Task<string> response = task.Result.Content.ReadAsStringAsync();
             response.Wait();
 
             object result = null;
 
-            if (!args.ReturnType.Equals(typeof(void)))
+            switch (task.Result.StatusCode)
             {
-                result = JsonConvert.DeserializeObject(response.Result, args.ReturnType);
+                case HttpStatusCode.OK:
+                    {
+                        if (!args.ReturnType.Equals(typeof(void)))
+                        {
+                            result = JsonConvert.DeserializeObject(response.Result, args.ReturnType);
+                        }
+                        return result;
+                    }
+                case HttpStatusCode.InternalServerError:
+                    {
+                        string exceptionClass = JObject.Parse(response.Result)["ClassName"].ToString();
+                        throw (Exception)JsonConvert.DeserializeObject(response.Result, Type.GetType(exceptionClass));
+                    }
+                case HttpStatusCode.NotFound:
+                default:
+                    throw new InvalidOperationException($"REST api returned status code {task.Result.StatusCode} - {task.Result.ReasonPhrase}");
             }
-
-            return result;
         }
 
         private static string GetRoute(int frame = 3)

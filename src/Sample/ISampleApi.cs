@@ -20,6 +20,7 @@ namespace Sample
         string ToUpper(string value);
         List<int> Numbers0To10();
         dynamic DynamicData();
+        void ThrowException();
 
         //Using different HttpVerbs you can also send large amounts of data with any datatype that is JSON-serializable.
         [UseHttpMethod(HttpVerb.POST)]

@@ -255,9 +255,14 @@ namespace ApexLogic.AutoREST
                 response.ContentLength64 = data.LongLength;
                 response.OutputStream.Write(data, 0, data.Length);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 response.StatusCode = 500;
+
+                string result = JsonConvert.SerializeObject(ex.InnerException);
+                byte[] data = Encoding.UTF8.GetBytes(result);
+                response.ContentLength64 = data.LongLength;
+                response.OutputStream.Write(data, 0, data.Length);
             }
 
             response.Close();

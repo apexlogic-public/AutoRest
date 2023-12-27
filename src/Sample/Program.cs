@@ -47,6 +47,19 @@ namespace Sample
             dynamic test = RestApi.SampleApi.DynamicData();
             RestApi.SampleApi.SendLotsOfData("test");
 
+            try
+            {
+                RestApi.SampleApi.ThrowException();
+            }
+            catch(InvalidOperationException ex)
+            {
+                //You can also inspect/get notified on exceptions thrown on the server using simple try-catch blocks.
+                //The exceptions will retain their types and messages but due to security considerations, the stack trace wil only be local.
+            }
+            catch (Exception ex)
+            {
+            }
+
             //Raise some events...
             while (true)
             {
