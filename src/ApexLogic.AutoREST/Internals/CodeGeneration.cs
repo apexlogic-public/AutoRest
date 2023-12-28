@@ -36,7 +36,6 @@ namespace ApexLogic.AutoREST.Internals
             return result;
         }
 
-
         public static string ToCode(MemberDeclarationSyntax syntax)
         {
             return syntax.ToFullString();

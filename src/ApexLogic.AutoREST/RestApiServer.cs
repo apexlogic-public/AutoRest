@@ -31,7 +31,7 @@ namespace ApexLogic.AutoREST
             nameof(GetType) 
         };
 
-        private static Dictionary<int, HttpListenerRequest> _servercallMetadata = new Dictionary<int, HttpListenerRequest>();
+        private static ConcurrentDictionary<int, HttpListenerRequest> _servercallMetadata = new ConcurrentDictionary<int, HttpListenerRequest>();
 
         private ConcurrentBag<ApiEventSubscription> _eventSupscriptions = new ConcurrentBag<ApiEventSubscription>();
 
@@ -187,7 +187,7 @@ namespace ApexLogic.AutoREST
                     HttpListenerRequest req = ctx.Request;
                     HttpListenerResponse resp = ctx.Response;
 
-                    //_servercallMetadata.Add((int)Task.CurrentId, req);
+                    while (!_servercallMetadata.TryAdd((int)Task.CurrentId, req)) ;
 
                     resp.ContentType = "text/json";
                     resp.ContentEncoding = Encoding.UTF8;
@@ -208,7 +208,7 @@ namespace ApexLogic.AutoREST
                         resp.Close();
                     }
 
-                    //_servercallMetadata.Remove(run.Id);
+                    while (!_servercallMetadata.TryRemove(run.Id, out _)) ;
                 });
             }
 

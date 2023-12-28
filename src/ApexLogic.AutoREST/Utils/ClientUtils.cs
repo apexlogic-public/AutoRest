@@ -45,28 +45,26 @@ namespace ApexLogic.AutoREST.Utils
         /// <exception cref="NotSupportedException"></exception>
         public static object RestApiCallHandler(ApiCallArguments args, HttpClient client)
         {
-            string s = args.Host + GetRoute() + GetQuery(args.Parameters);
+            string route = GetRoute();
+            string url = args.Host + route + GetQuery(args.Parameters);
 
             Task<HttpResponseMessage> task = null;
             switch (args.Verb)
             {
                 case HttpVerb.GET:
-                    task = client.GetAsync(s);
+                    task = client.GetAsync(url);
                     break;
                 case HttpVerb.POST:
-                    task = client.PostAsync(s, new StringContent(JsonConvert.SerializeObject(args.RequestBody)));
+                    task = client.PostAsync(url, new StringContent(JsonConvert.SerializeObject(args.RequestBody)));
                     break;
                 case HttpVerb.PUT:
-                    task = client.PutAsync(s, new StringContent(JsonConvert.SerializeObject(args.RequestBody)));
+                    task = client.PutAsync(url, new StringContent(JsonConvert.SerializeObject(args.RequestBody)));
                     break;
                 case HttpVerb.DELETE:
-                    task = client.DeleteAsync(s);
+                    task = client.DeleteAsync(url);
                     break;
-                case HttpVerb.PATCH:
-                case HttpVerb.CONNECT:
-                case HttpVerb.TRACE:
-                case HttpVerb.HEAD:
-                case HttpVerb.OPTIONS:
+
+                default:
                     throw new NotSupportedException($"HTTP Verb {args.Verb} is not yet supported!");
             }
 
@@ -92,6 +90,7 @@ namespace ApexLogic.AutoREST.Utils
                         throw (Exception)JsonConvert.DeserializeObject(response.Result, Type.GetType(exceptionClass));
                     }
                 case HttpStatusCode.NotFound:
+                    throw new MissingMethodException($"Could not find endpoint \"{args.Host}{route}\"!");
                 default:
                     throw new InvalidOperationException($"REST api returned status code {task.Result.StatusCode} - {task.Result.ReasonPhrase}");
             }
@@ -119,6 +118,5 @@ namespace ApexLogic.AutoREST.Utils
             }
             return result;
         }
-
     }
 }

@@ -69,7 +69,6 @@ namespace ApexLogic.AutoREST
                     continue;
                 }
 
-
                 var attr1 = method.GetCustomAttributes<RestIgnoreAttribute>(true);
                 var attr2 = method.GetCustomAttributes<UseHttpMethodAttribute>(true);
 
@@ -93,7 +92,6 @@ namespace ApexLogic.AutoREST
 
             foreach (PropertyInfo property in typeof(T).GetProperties())
             {
-
                 if (property.IsSpecialName)
                 {
                     continue;
@@ -206,9 +204,7 @@ namespace ApexLogic.AutoREST
         {
             SourceWithUsings result = new SourceWithUsings();
 
-            //new ApiCallArguments(host, verb, method, returnType, param, body);
             HttpVerb verb = HttpVerb.GET;
-
             UseHttpMethodAttribute verbAttr = method.GetCustomAttributes<UseHttpMethodAttribute>(true).FirstOrDefault();
             if(verbAttr != null)
             {
@@ -224,8 +220,6 @@ namespace ApexLogic.AutoREST
                 if (bodybAttr != null)
                 {
                     bodyName = parameter.Name;
-
-
                 }
             }
 

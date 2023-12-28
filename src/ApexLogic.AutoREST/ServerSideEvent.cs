@@ -62,7 +62,6 @@ namespace ApexLogic.AutoREST
     public class ServerSideEventClient : ServerSideEvent
     {
         private string _host;
-        private HttpClient _connection;
         private bool _listenerStarted;
         private Task _readerTask;
 
