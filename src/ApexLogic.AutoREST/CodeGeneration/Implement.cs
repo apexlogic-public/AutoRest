@@ -22,13 +22,13 @@ namespace ApexLogic.AutoREST
         private const string DANYMIC_CLASSNAME = "ImplementedType";
 
         private const string CLASS_SCAFFOLDING =
-            "{4}\n" +
-            "public class {1} : {2}, ILikeThisDelegate\n" +
-            "{{\n" +
-            "    {3}\n" +
-            "}}\n\n" +
-            "return new {1}();";
-        private const string METHOD_SCAFFOLDING = "public {0} {1}({2})\n {{\n {3}\n }}";
+            "{usings}\n" +
+            "public class {name} : {inherit}, ILikeThisDelegate\n" +
+            "{\n" +
+            "    {body}\n" +
+            "}\n\n" +
+            "return new {name}();";
+        private const string METHOD_SCAFFOLDING = "public {type} {name}({params})\n {\n {body}\n }";
 
         private const string VOID_CALL_SCAFFOLDING = "_methodDelegate({0});";
         private const string RETURN_DANYMIC_CALL_SCAFFOLDING = "return _methodDelegate({0});";
@@ -39,7 +39,7 @@ namespace ApexLogic.AutoREST
         private const string METHOD_DELEGATE_PROP = "public Func<ApiCallArguments, object> _methodDelegate { get; set; }";
         private const string EVENT_DELEGATE_PROP = "public Func<string, ServerSideEvent> _eventDelegate { get; set; }";
 
-        private const string APICALL_SCAFFOLD = "new ApiCallArguments({0}, HttpVerb.{1}, \"{2}\", typeof({3}), {4}, {5})";
+        private const string APICALL_SCAFFOLD = "new ApiCallArguments({host}, HttpVerb.{verb}, \"{method}\", typeof({returntype}), {params}, {body})";
 
         private const string TYPE_VOID = "void";
 
@@ -107,15 +107,15 @@ namespace ApexLogic.AutoREST
 
             Tuple<string, string> generated = CreateDynamicTypeSource(methods.SelectMany(m => m.Usings).Distinct().ToList());
             string typeName = generated.Item1;
-            string scaffold = generated.Item2;
 
-            scaffold = scaffold.Replace("{3}", METHOD_DELEGATE_PROP + "\n" + EVENT_DELEGATE_PROP + "\n\n" + string.Join("\n\n", methods.Select(m => m.SourceCode)));
+            StringFormatter scaffold = new StringFormatter(generated.Item2);
+            scaffold.Set("body", METHOD_DELEGATE_PROP + "\n" + EVENT_DELEGATE_PROP + "\n\n" + string.Join("\n\n", methods.Select(m => m.SourceCode)));
 
             ScriptOptions options = ScriptOptions.Default;
             Assembly[] assemblies = methods.SelectMany(m => m.Assemblies).Distinct().ToArray();
             options = options.AddReferences(assemblies);
 
-            Script script = CSharpScript.Create<T>(scaffold, options);
+            Script script = CSharpScript.Create<T>(scaffold.ToString(), options);
             Task<ScriptState> run = script.RunAsync();
             run.Wait();
             ILikeThisDelegate result = (ILikeThisDelegate)run.Result.ReturnValue;
@@ -131,14 +131,13 @@ namespace ApexLogic.AutoREST
 
             usings.Add(typeof(T).Namespace);
 
-            string source = string.Format(CLASS_SCAFFOLDING, 
-                                            dynamicNamespace,
-                                            DANYMIC_CLASSNAME, 
-                                            typeof(T).Name, 
-                                            "{3}", 
-                                            string.Join("\r\n", usings.Select(u => $"using {u};"))
-                                        );
-            return new Tuple<string, string>($"{dynamicNamespace}.{DANYMIC_CLASSNAME}", source);
+            StringFormatter scaffold = new StringFormatter(CLASS_SCAFFOLDING);
+            scaffold.Set("namespace", dynamicNamespace);
+            scaffold.Set("name", DANYMIC_CLASSNAME);
+            scaffold.Set("inherit", typeof(T).Name);
+            scaffold.Set("usings", string.Join("\r\n", usings.Select(u => $"using {u};")));
+
+            return new Tuple<string, string>($"{dynamicNamespace}.{DANYMIC_CLASSNAME}", scaffold.ToString());
         }
 
         private static SourceWithUsings CreateDynamicMethodSource(MethodInfo info, string body)
@@ -155,7 +154,13 @@ namespace ApexLogic.AutoREST
 
             SourceWithUsings returnType = CreateTypeSourceString(info.ReturnType);
             result.Combine(returnType);
-            result.SourceCode = string.Format(METHOD_SCAFFOLDING, returnType.SourceCode, info.Name, string.Join(", ", parameters), body);
+
+            StringFormatter scaffold = new StringFormatter(METHOD_SCAFFOLDING);
+            scaffold.Set("type", returnType.SourceCode);
+            scaffold.Set("name", info.Name);
+            scaffold.Set("params", string.Join(", ", parameters));
+            scaffold.Set("body", body);
+            result.SourceCode = scaffold.ToString();
 
             return result;
         }
@@ -223,13 +228,14 @@ namespace ApexLogic.AutoREST
                 }
             }
 
-            result.SourceCode =  string.Format(APICALL_SCAFFOLD, 
-                                "null", 
-                                verb, 
-                                method.Name,
-                                returnType.SourceCode, 
-                                CreateDynamicMethodParameterDictionary(method, bodyName),
-                                bodyName);
+            StringFormatter scaffold = new StringFormatter(APICALL_SCAFFOLD);
+            scaffold.Set("host", "null");
+            scaffold.Set("verb", verb);
+            scaffold.Set("method", method.Name);
+            scaffold.Set("returntype", returnType.SourceCode);
+            scaffold.Set("params", CreateDynamicMethodParameterDictionary(method, bodyName));
+            scaffold.Set("body", bodyName);
+            result.SourceCode = scaffold.ToString();
 
             result.Usings.AddRange(returnType.Usings);
 
