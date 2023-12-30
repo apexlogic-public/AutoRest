@@ -1,10 +1,10 @@
 ![Header](/res/github-header-image.png)
 
-# AutoRest
+# 🚗🛏️ AutoRest
 
 **AutoRest** is a nimble and efficient REST API library for C# developers, designed to seamlessly integrate with any .NET Framework and .NET Core project. This library simplifies the process of creating RESTful services, emphasizing simplicity, performance, and flexibility.
 
-Key Features:
+## Features:
 
 * Versatile Compatibility: Works effortlessly with both .NET Framework and .NET Core without relying on OS specific code, allowing developers to build applications across a broad spectrum of platforms.
 * Transient interface: Write APIs just like you would write a C# interface implementation - nothing else required.
@@ -15,4 +15,6 @@ Key Features:
 * Lightweight Footprint: Designed with a minimalistic footprint, AutoRest avoids unnecessary dependencies, ensuring lightweight integration into projects without introducing any unnecessary bloat.
 * Open Source: Licensed under the MIT License, the library is open source, encouraging community collaboration and contributions to enhance its features and compatibility.
 
-Get started with AutoRest today and elevate your C# application's REST API interactions with ease and efficiency. Whether you're building for .NET Framework or .NET Core, this library has you covered.
+## Usage
+
+Check out the (wiki)[./wiki] or explore the all-in-one (sample)[./tree/main/src/Sample]
