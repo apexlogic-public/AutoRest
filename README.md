@@ -17,4 +17,4 @@
 
 ## Usage
 
-Check out the [wiki](https://github.com/apexlogic-public/AutoRest/) or explore the all-in-one [sample](https://github.com/apexlogic-public/AutoRest/wiki/tree/main/src/Sample)
+Check out the [wiki](https://github.com/apexlogic-public/AutoRest/wiki) or explore the all-in-one [sample](https://github.com/apexlogic-public/AutoRest/tree/main/src/Sample)
