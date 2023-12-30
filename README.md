@@ -17,4 +17,4 @@
 
 ## Usage
 
-Check out the (wiki)[./wiki] or explore the all-in-one (sample)[./tree/main/src/Sample]
+Check out the [wiki](./wiki) or explore the all-in-one [sample](./tree/main/src/Sample)
