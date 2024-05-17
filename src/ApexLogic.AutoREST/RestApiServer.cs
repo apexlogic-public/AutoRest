@@ -98,6 +98,7 @@ namespace ApexLogic.AutoREST
         {
             Type type = api.GetType();
             RestApiAttribute[] apiAttr = type.GetCustomAttributes<RestApiAttribute>(true);
+            ResponseHeaderAttribute[] globalHeadersAttr = type.GetCustomAttributes<ResponseHeaderAttribute>(true);
 
             if (apiAttr.Length > 0)
             {
@@ -107,7 +108,19 @@ namespace ApexLogic.AutoREST
                 {
                     RestIgnoreAttribute ingoreAttr = method.GetCustomAttribute<RestIgnoreAttribute>();
                     UseHttpMethodAttribute methodAttr = method.GetCustomAttribute<UseHttpMethodAttribute>();
-                    if (ingoreAttr == null && method.IsPublic && !_methodNameExclusions.Contains(method.Name))
+					ResponseHeaderAttribute[] localHeadersAttr = method.GetCustomAttributes<ResponseHeaderAttribute>(true).ToArray();
+
+                    Dictionary<string, string> headers = new Dictionary<string, string>();
+                    foreach(ResponseHeaderAttribute attr in globalHeadersAttr)
+                    {
+                        headers.Add(attr.Header, attr.Value);
+					}
+                    foreach(ResponseHeaderAttribute attr in localHeadersAttr)
+                    {
+                        headers.Add(attr.Header, attr.Value);
+					}
+
+					if (ingoreAttr == null && method.IsPublic && !_methodNameExclusions.Contains(method.Name))
                     {
                         HttpVerb verb = methodAttr != null ? methodAttr.Method : HttpVerb.GET;
                         endpoints.Add(new ApiEndpoint()
@@ -116,12 +129,13 @@ namespace ApexLogic.AutoREST
                             Verb = verb,
                             Route = $"{baseAddress}/{method.Name.ToLower()}",
                             ServiceObject = api,
-                            RelfectionInfo = method
-                        });
+                            RelfectionInfo = method,
+                            Headers = headers
+						});
                     }
                 }
 
-                foreach (PropertyInfo property in type.GetProperties().Where(prop => prop.PropertyType == typeof(ServerSideEvent)))
+                foreach (PropertyInfo property in type.GetProperties().Where(prop => typeof(ServerSideEventBase).IsAssignableFrom(prop.PropertyType)))
                 {
                     RestIgnoreAttribute attr = property.GetCustomAttribute<RestIgnoreAttribute>();
                     if (attr == null)
@@ -141,10 +155,11 @@ namespace ApexLogic.AutoREST
                             RelfectionInfo = property
                         });
 
-                        ServerSideEvent evt = (property.GetValue(api) as ServerSideEvent);
-                        evt.Subscribe(OnEvent);
-                        typeof(ServerSideEvent).GetProperty(ServerSideEvent.NAME_FIELD, BindingFlags.NonPublic | BindingFlags.Instance).SetValue(evt, property.Name);
-                        typeof(ServerSideEvent).GetProperty(ServerSideEvent.SERVICE_FIELD, BindingFlags.NonPublic | BindingFlags.Instance).SetValue(evt, api);
+                        object evtRaw = property.GetValue(api);
+						ServerSideEventBase evt = evtRaw as ServerSideEventBase;
+                        evt.SubscribeGeneric(OnEvent);
+						typeof(ServerSideEventBase).GetProperty(ServerSideEventBase.NAME_FIELD, BindingFlags.NonPublic | BindingFlags.Instance).SetValue(evt, property.Name);
+						typeof(ServerSideEventBase).GetProperty(ServerSideEventBase.SERVICE_FIELD, BindingFlags.NonPublic | BindingFlags.Instance).SetValue(evt, api);
                     }
                 }
             }
@@ -218,6 +233,8 @@ namespace ApexLogic.AutoREST
         {
             while (_isRunning)
             {
+                //List<ApiEventSubscription> killedSubscriptions = new List<ApiEventSubscription>();
+
                 foreach(ApiEventSubscription subscription in _eventSupscriptions)
                 {
                     lock (subscription)
@@ -225,11 +242,19 @@ namespace ApexLogic.AutoREST
                         string result = JsonConvert.SerializeObject(new KeepAlive());
 
                         byte[] data = Encoding.UTF8.GetBytes(result + Environment.NewLine);
-                        subscription.Client.Response.OutputStream.Write(data, 0, data.Length);
 
-                        subscription.Client.Response.OutputStream.Flush();
+                        try
+                        {
+							subscription.Client.Response.OutputStream.Write(data, 0, data.Length);
+							subscription.Client.Response.OutputStream.Flush();
+						}
+						catch (HttpListenerException)
+                        {
+                            //killedSubscriptions.Add(subscription);
+						}
                     }
                 }
+
                 Thread.Sleep(5000);
             }
         }
@@ -249,6 +274,11 @@ namespace ApexLogic.AutoREST
                 object[] param = FillParameters(endpoint.RelfectionInfo as MethodInfo, request.QueryString, body);
                 object returnData = (endpoint.RelfectionInfo as MethodInfo).Invoke(endpoint.ServiceObject, param);
                 string result = JsonConvert.SerializeObject(returnData);
+
+                foreach(KeyValuePair<string, string> header in endpoint.Headers)
+                {
+                    response.Headers.Add(header.Key, header.Value);
+                }
 
                 response.StatusCode = 200;
                 byte[] data = Encoding.UTF8.GetBytes(result);
@@ -282,7 +312,7 @@ namespace ApexLogic.AutoREST
             ctx.Response.KeepAlive = true;
         }
 
-        private void OnEvent(object sender, EventArgs e)
+        private void OnEvent(object sender, object e)
         {
             Tuple<object, string> evt = sender as Tuple<object, string>;
             foreach(ApiEventSubscription subscription in GetEventSubscriptions(evt))
@@ -292,7 +322,8 @@ namespace ApexLogic.AutoREST
                     string result = JsonConvert.SerializeObject(new EventInvoke()
                     {
                         ServerDateTime = DateTime.UtcNow.ToString("yyyyMMddHHmmss"),
-                        EventName = evt.Item2
+                        EventName = evt.Item2,
+                        Data = JsonConvert.SerializeObject(e)
                     });
 
                     byte[] data = Encoding.UTF8.GetBytes(result + Environment.NewLine);
@@ -301,7 +332,6 @@ namespace ApexLogic.AutoREST
                     subscription.Client.Response.OutputStream.Flush();
                 }
             }
-            Console.WriteLine("[Server] Event invoked");
         }
 
         private IEnumerable<ApiEventSubscription> GetEventSubscriptions(Tuple<object, string> evt)

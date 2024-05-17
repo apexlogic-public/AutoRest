@@ -96,8 +96,9 @@ namespace ApexLogic.AutoREST.Utils
             }
         }
 
-        private static string GetRoute(int frame = 3)
+        public static string GetRoute(int frame = 3)
         {
+            string s = new StackTrace().ToString();
             MethodBase method = new StackTrace().GetFrame(frame).GetMethod();
             Type implementedType = method.DeclaringType;
             string result = implementedType.GetCustomAttributes<RestApiAttribute>(true)[0].EndPoint + "/" + method.Name;
@@ -108,7 +109,7 @@ namespace ApexLogic.AutoREST.Utils
             return result.ToLower();
         }
 
-        private static string GetQuery(Dictionary<string, object> parameters)
+        public static string GetQuery(Dictionary<string, object> parameters)
         {
             string result = string.Empty;
             if (parameters.Count > 0)

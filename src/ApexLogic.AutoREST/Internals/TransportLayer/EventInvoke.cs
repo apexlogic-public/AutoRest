@@ -10,5 +10,6 @@ namespace ApexLogic.AutoREST.Internals.TransportLayer
     {
         public string ServerDateTime { get; set; }
         public string EventName { get; set; }
+        public string Data { get; set; }
     }
 }
