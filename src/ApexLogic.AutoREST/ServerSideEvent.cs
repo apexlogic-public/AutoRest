@@ -176,7 +176,7 @@ namespace ApexLogic.AutoREST
 
 		private void ReadRunner()
         {
-            using (var client = new HttpClient())
+			using (var client = new HttpClient())
             {
                 Task<Stream> task = client.GetStreamAsync($"{_host}/subscribe");
                 task.Wait();
@@ -186,7 +186,8 @@ namespace ApexLogic.AutoREST
                     while (true)
                     {
                         string s = reader.ReadLine();
-                        if(s != "{ }")
+
+						if (s != "{ }")
                         {
                             if(s.Contains("\"ServerDateTime\"") && s.Contains("\"EventName\""))
                             {
@@ -234,6 +235,8 @@ namespace ApexLogic.AutoREST
 
 		private void ReadRunner()
 		{
+			Console.WriteLine($"Read runner start for {_host}");
+
 			using (var client = new HttpClient())
 			{
 				Task<Stream> task = client.GetStreamAsync($"{_host}/subscribe");
@@ -244,6 +247,8 @@ namespace ApexLogic.AutoREST
 					while (true)
 					{
 						string s = reader.ReadLine();
+						Console.WriteLine("EVENT NOTIFICATION:");
+						Console.WriteLine(s);
 						if (s != "{ }")
 						{
 							if (s.Contains("\"ServerDateTime\"") && s.Contains("\"EventName\""))

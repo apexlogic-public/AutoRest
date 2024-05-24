@@ -33,7 +33,7 @@ namespace ApexLogic.AutoREST
 
         private static ConcurrentDictionary<int, HttpListenerRequest> _servercallMetadata = new ConcurrentDictionary<int, HttpListenerRequest>();
 
-        private ConcurrentBag<ApiEventSubscription> _eventSupscriptions = new ConcurrentBag<ApiEventSubscription>();
+        private List<ApiEventSubscription> _eventSupscriptions = new List<ApiEventSubscription>();
 
         private bool _isRunning;
         private HttpListener _listener;
@@ -223,7 +223,7 @@ namespace ApexLogic.AutoREST
                         resp.Close();
                     }
 
-                    while (!_servercallMetadata.TryRemove(run.Id, out _)) ;
+                    while (run == null && !_servercallMetadata.TryRemove(run.Id, out _)) ;
                 });
             }
 
@@ -306,14 +306,24 @@ namespace ApexLogic.AutoREST
                 Client = ctx
             });
 
-            ctx.Response.ContentType = "text/event";
-            ctx.Response.ContentEncoding = Encoding.UTF8;
+            ctx.Response.StatusCode = 200;
+            ctx.Response.Headers.Add("Content-Type", "text/event-stream");
+            ctx.Response.Headers.Add("Cache-Control", "no-cache");
+            ctx.Response.Headers.Add("Access-Control-Allow-Origin", "*");
+            ctx.Response.Headers.Add("Content-Encoding", "none");
 
             ctx.Response.KeepAlive = true;
+
+            string rawData = "event: Event\n\n";
+            byte[] data = Encoding.UTF8.GetBytes(rawData);
+            ctx.Response.OutputStream.Write(data, 0, data.Length);
+
         }
 
         private void OnEvent(object sender, object e)
         {
+            List<ApiEventSubscription> deadSubs = new List<ApiEventSubscription>();
+
             Tuple<object, string> evt = sender as Tuple<object, string>;
             foreach(ApiEventSubscription subscription in GetEventSubscriptions(evt))
             {
@@ -326,12 +336,25 @@ namespace ApexLogic.AutoREST
                         Data = JsonConvert.SerializeObject(e)
                     });
 
-                    byte[] data = Encoding.UTF8.GetBytes(result + Environment.NewLine);
-                    subscription.Client.Response.OutputStream.Write(data, 0, data.Length);
+                    subscription.Client.Response.Headers.Add("Content-Type", "text/event-stream");
 
-                    subscription.Client.Response.OutputStream.Flush();
+
+                    string rawData = "data: " + result + "\n\n";
+                    byte[] data = Encoding.UTF8.GetBytes(rawData);
+
+                    try
+                    {
+                        subscription.Client.Response.OutputStream.Write(data, 0, data.Length);
+						subscription.Client.Response.OutputStream.Flush();
+					}
+                    catch(HttpListenerException ex)
+                    {
+						deadSubs.Add(subscription);
+					}               
                 }
             }
+
+            _eventSupscriptions = _eventSupscriptions.Except(deadSubs).ToList();
         }
 
         private IEnumerable<ApiEventSubscription> GetEventSubscriptions(Tuple<object, string> evt)
